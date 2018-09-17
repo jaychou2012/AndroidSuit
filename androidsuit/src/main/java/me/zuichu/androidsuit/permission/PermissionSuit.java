@@ -7,18 +7,24 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.content.ContextCompat;
+import android.util.SparseArray;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class PermissionSuit {
     private Activity activity;
-    private PermissionListener permissionListener;
     private int requestCode = 0;
     private ArrayList<String> requestPermissions = new ArrayList<String>();
+    private ArrayList<String> noPermissions = new ArrayList<String>();
+    private ArrayList<String> getPermissions = new ArrayList<String>();
+    private SparseArray<PermissionListener> listenerSparseArray = new SparseArray<>();
     public static final String[]
             group_storage = {Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.READ_EXTERNAL_STORAGE};
@@ -75,13 +81,6 @@ public class PermissionSuit {
                     requestPermissions.add(permission);
                 }
             }
-            if (requestPermissions.size() == 0) {
-                if (permissionListener != null) {
-                    permissionListener.getPermission(permissions[0]);
-                }
-                return this;
-            }
-            PermissionFragment.newInstance(requestPermissions, requestCode).request(activity.getFragmentManager());
         }
         return this;
     }
@@ -100,13 +99,6 @@ public class PermissionSuit {
                     requestPermissions.add(permission);
                 }
             }
-            if (requestPermissions.size() == 0) {
-                if (permissionListener != null) {
-                    permissionListener.getPermission(getStringsOneDimensional(permissions).toString());
-                }
-                return this;
-            }
-            PermissionFragment.newInstance(requestPermissions, requestCode).request(activity.getFragmentManager());
         }
         return this;
     }
@@ -122,12 +114,25 @@ public class PermissionSuit {
                     requestPermissions.add(permission);
                 }
             }
-            if (requestPermissions.size() == 0) {
-                return this;
-            }
-            PermissionFragment.newInstance(requestPermissions, requestCode).request(activity.getFragmentManager());
         }
         return this;
+    }
+
+    public void excute(PermissionListener permissionListener) {
+        listenerSparseArray.put(requestCode, permissionListener);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (requestPermissions.size() == 0) {
+                if (listenerSparseArray.get(requestCode) != null) {
+                    listenerSparseArray.get(requestCode).getAllPermission(requestPermissions);
+                }
+                return;
+            }
+            PermissionFragment.newInstance(this,requestPermissions, requestCode).request(activity.getFragmentManager());
+        } else {
+            if (listenerSparseArray.get(requestCode) != null) {
+                listenerSparseArray.get(requestCode).getAllPermission(requestPermissions);
+            }
+        }
     }
 
     public static void toApplicationSetting(Context context) {
@@ -169,31 +174,36 @@ public class PermissionSuit {
     }
 
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        noPermissions.clear();
+        getPermissions.clear();
         for (int i = 0; i < permissions.length; i++) {
             if (grantResults[i] == PackageManager.PERMISSION_GRANTED) {
-                System.out.println("授权" + permissionListener);
-                if (permissionListener != null) {
-                    System.out.println("授权回调");
-                    permissionListener.getPermission(permissions[i]);
-                }
+                getPermissions.add(permissions[i]);
             } else {
-                System.out.println("没授权" + permissionListener);
-                if (permissionListener != null) {
-                    System.out.println("没授权回调");
-                    permissionListener.noPermision(permissions[i]);
-                }
+                noPermissions.add(permissions[i]);
             }
+        }
+        if (listenerSparseArray.get(requestCode) != null) {
+            setPermissions();
         }
     }
 
-    public PermissionSuit setPermissionListener(PermissionListener permissionListener) {
-        this.permissionListener = permissionListener;
-        return this;
+    private void setPermissions() {
+        if (getPermissions.size() == requestPermissions.size()) {
+            listenerSparseArray.get(requestCode).getAllPermission(requestPermissions);
+        } else if (getPermissions.size() > 0) {
+            listenerSparseArray.get(requestCode).getPermission(getPermissions);
+            listenerSparseArray.get(requestCode).noPermision(noPermissions);
+        } else if (getPermissions.size() == 0) {
+            listenerSparseArray.get(requestCode).noPermision(noPermissions);
+        }
     }
 
     public interface PermissionListener {
-        void getPermission(String permission);
+        void getPermission(ArrayList<String> permission);
 
-        void noPermision(String permission);
+        void getAllPermission(ArrayList<String> permission);
+
+        void noPermision(ArrayList<String> permission);
     }
 }

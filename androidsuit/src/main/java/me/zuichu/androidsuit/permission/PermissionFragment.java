@@ -5,6 +5,7 @@ import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
@@ -13,8 +14,10 @@ import java.util.ArrayList;
 public class PermissionFragment extends Fragment {
     private static String permissions = "permissions";
     private static String request = "request";
+    private static PermissionSuit suit;
 
-    public static PermissionFragment newInstance(ArrayList<String> permission, int requestCode) {
+    public static PermissionFragment newInstance(PermissionSuit permissionSuit, ArrayList<String> permission, int requestCode) {
+        suit = permissionSuit;
         Bundle args = new Bundle();
         args.putStringArrayList(permissions, permission);
         args.putInt(request, requestCode);
@@ -34,7 +37,7 @@ public class PermissionFragment extends Fragment {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        PermissionSuit.with(getActivity()).onRequestPermissionsResult(requestCode, permissions, grantResults);
+        suit.onRequestPermissionsResult(requestCode, permissions, grantResults);
         FragmentTransaction ft = getFragmentManager().beginTransaction();
         ft.remove(this);
         ft.commit();
