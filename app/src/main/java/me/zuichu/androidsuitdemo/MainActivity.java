@@ -9,6 +9,8 @@ import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
+
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import me.zuichu.androidsuit.download.DPoolImpl;
@@ -28,21 +30,27 @@ public class MainActivity extends AppCompatActivity implements PermissionSuit.Pe
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
         tv_text.setOnClickListener(this);
-        PermissionSuit.with(this).setPermissionListener(this).setPermissions(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        PermissionSuit.with(this).setPermissions(Manifest.permission.READ_PHONE_STATE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE).excute(this);
     }
 
     @Override
-    public void getPermission(String permission) {
-        System.out.println("授权了getPermission");
+    public void getPermission(ArrayList<String> permission) {
+        System.out.println("授权了getPermission" + permission);
         Toast.makeText(this, "授权了", Toast.LENGTH_SHORT).show();
         dPool = new DPoolImpl.Builder().context(this).downloadUrl(downloadUrl).fileSaveUrl(Environment.getExternalStorageDirectory() + "/file.apk").build();
-        dPool.excutePool();
+//        dPool.excutePool();
         dPool.setOnDpoolListener(this);
     }
 
     @Override
-    public void noPermision(String permission) {
-        System.out.println("没授权noPermision");
+    public void getAllPermission(ArrayList<String> permission) {
+        System.out.println("授权了getAllPermission" + permission);
+        Toast.makeText(this, "授权了全部", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void noPermision(ArrayList<String> permission) {
+        System.out.println("没授权noPermision" + permission);
         Toast.makeText(this, "没授权", Toast.LENGTH_SHORT).show();
     }
 
