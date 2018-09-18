@@ -8,10 +8,12 @@ public class DownLoadEntity {
     private String url;
     private long startPosition;
     private long endPosition;
+    private long currentPosition;
     private int perSize;
     private File tempFile;
     private int status;//0：完成；1：下载中
     private int threadCount;
+    private String signId;
 
     public DownLoadEntity() {
 
@@ -89,16 +91,34 @@ public class DownLoadEntity {
         this.threadCount = threadCount;
     }
 
+    public String getSignId() {
+        return signId;
+    }
+
+    public void setSignId(String signId) {
+        this.signId = signId;
+    }
+
+    public long getCurrentPosition() {
+        return currentPosition;
+    }
+
+    public void setCurrentPosition(long currentPosition) {
+        this.currentPosition = currentPosition;
+    }
+
     private DownLoadEntity(Builder builder) {
         fileSize = builder.fileSize;
         threadId = builder.threadId;
         url = builder.url;
         startPosition = builder.startPosition;
         endPosition = builder.endPosition;
+        currentPosition = builder.currentPosition;
         perSize = builder.perSize;
         tempFile = builder.tempFile;
         status = builder.status;
         threadCount = builder.threadCount;
+        signId = builder.signId;
     }
 
 
@@ -108,10 +128,12 @@ public class DownLoadEntity {
         private String url;
         private long startPosition;
         private long endPosition;
+        private long currentPosition;
         private int perSize;
         private File tempFile;
         private int status;
         private int threadCount;
+        private String signId;
 
         public Builder() {
         }
@@ -141,6 +163,11 @@ public class DownLoadEntity {
             return this;
         }
 
+        public Builder currentPosition(long val) {
+            currentPosition = val;
+            return this;
+        }
+
         public Builder perSize(int val) {
             perSize = val;
             return this;
@@ -158,6 +185,11 @@ public class DownLoadEntity {
 
         public Builder threadCount(int val) {
             threadCount = val;
+            return this;
+        }
+
+        public Builder signId(String val) {
+            signId = val;
             return this;
         }
 

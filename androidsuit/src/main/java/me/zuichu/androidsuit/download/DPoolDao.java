@@ -12,6 +12,8 @@ public interface DPoolDao {
 
     void resumeDpool();
 
+    void reDpool();
+
     void excutePool();
 
     void closeDB();

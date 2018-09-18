@@ -23,7 +23,6 @@ public class DRunnable implements Runnable {
         this.context = context;
         this.dEntity = entity;
         this.handler = handler;
-        pause = false;
     }
 
     @Override
@@ -31,22 +30,22 @@ public class DRunnable implements Runnable {
         HTTPSTrustManager.allowAllSSL();
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(dEntity.getUrl()).openConnection();
-            conn.setRequestProperty("Range", "bytes=" + dEntity.getStartPosition() + "-" + dEntity.getEndPosition());
+            conn.setRequestProperty("Range", "bytes=" + dEntity.getCurrentPosition() + "-" + dEntity.getEndPosition());
             conn.setRequestMethod("GET");
+            conn.setRequestProperty("Referer", dEntity.getUrl());
             conn.setConnectTimeout(TIME_OUT);
             conn.setReadTimeout(TIME_OUT);
             RandomAccessFile accessFile = new RandomAccessFile(dEntity.getTempFile(), "rwd");
-            accessFile.seek(dEntity.getStartPosition());
-            int responseCode = conn.getResponseCode();
+            accessFile.seek(dEntity.getCurrentPosition());
             byte[] buffer = new byte[1024];
             int len;
-            long currentPosition = 0;
+            long currentPosition = dEntity.getCurrentPosition();
             InputStream is = conn.getInputStream();
             while ((len = is.read(buffer, 0, buffer.length)) != -1) {
                 if (pause) {
                     Message message = handler.obtainMessage(DPoolImpl.MESSAGE_PAUSE);
                     handler.sendMessage(message);
-                    break;
+                    return;
                 }
                 accessFile.write(buffer, 0, len);
                 currentPosition += len;

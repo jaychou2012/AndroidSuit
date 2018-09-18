@@ -38,6 +38,9 @@ public class DPoolImpl implements DPoolDao {
     private final String METHOD = "GET";
     private long begin, complete;
     private OnDpoolListener onDpoolListener;
+    private String signId = "";
+    private boolean hasDentity = false;
+    private List<DownLoadEntity> downList;
     private String TAG = "开始下载：";
     public static final int MESSAGE_GET_LENGTH = 0;
     public static final int MESSAGE_PROGRESS = 1;
@@ -67,6 +70,7 @@ public class DPoolImpl implements DPoolDao {
                     if (con.getResponseCode() == HttpURLConnection.HTTP_OK) {
                         int len = con.getContentLength();
                         contentLength = len;
+                        signId = con.getLastModified() + "_" + contentLength;
                         if (onDpoolListener != null) {
                             onDpoolListener.onFileSize(contentLength);
                         }
@@ -112,24 +116,10 @@ public class DPoolImpl implements DPoolDao {
         threadList.clear();
         list.clear();
         entityList.clear();
-        for (int i = 0; i < threadCount; i++) {
-            DownLoadEntity dEntity = new DownLoadEntity();
-            dEntity.setUrl(downloadUrl);
-            dEntity.setTempFile(new File(fileSaveUrl));
-            dEntity.setFileSize(contentLength);
-            dEntity.setPerSize(contentLength / threadCount);
-            dEntity.setStartPosition((contentLength / threadCount) * i);
-            if (i == threadCount - 1) {
-                dEntity.setEndPosition(dEntity.getFileSize());
-            } else {
-                dEntity.setEndPosition(((contentLength / threadCount) * (i + 1)) - 1);
-            }
-            dEntity.setThreadId(i);
-            dEntity.setThreadCount(threadCount);
-            DRunnable dRunnable = new DRunnable(context, dEntity, handler);
-            list.add(dRunnable);
-            entityList.add(dEntity);
-        }
+        downList = dbManager.getDEntityListBySignId(signId);
+        hasDentity = downList.size() > 0 ? true : false;
+        threadCount = hasDentity ? downList.size() : threadCount;
+        setThread();
         dThreadFactory = new DThreadFactory();
         executorService = Executors.newFixedThreadPool(threadCount, dThreadFactory);
         for (int i = 0; i < list.size(); i++) {
@@ -138,31 +128,72 @@ public class DPoolImpl implements DPoolDao {
         begin = System.currentTimeMillis();
     }
 
+    private void setThread() {
+        if (hasDentity) {
+            entityList = downList;
+            for (int i = 0; i < threadCount; i++) {
+                DRunnable dRunnable = new DRunnable(context, entityList.get(i), handler);
+                list.add(dRunnable);
+            }
+            System.out.println("数据存在");
+        } else {
+            for (int i = 0; i < threadCount; i++) {
+                DownLoadEntity dEntity = new DownLoadEntity();
+                dEntity.setUrl(downloadUrl);
+                dEntity.setTempFile(new File(fileSaveUrl));
+                dEntity.setFileSize(contentLength);
+                dEntity.setPerSize(contentLength / threadCount);
+                dEntity.setStartPosition((contentLength / threadCount) * i);
+                dEntity.setCurrentPosition((contentLength / threadCount) * i);
+                dEntity.setStatus(1);
+                dEntity.setSignId(signId);
+                if (i == threadCount - 1) {
+                    dEntity.setEndPosition(dEntity.getFileSize());
+                } else {
+                    dEntity.setEndPosition(((contentLength / threadCount) * (i + 1)) - 1);
+                }
+                dEntity.setThreadId(i);
+                dEntity.setThreadCount(threadCount);
+                DRunnable dRunnable = new DRunnable(context, dEntity, handler);
+                list.add(dRunnable);
+                entityList.add(dEntity);
+                dbManager.insertDEntity(dEntity);
+            }
+            File file = new File(downloadUrl);
+            if (file.exists()) {
+                file.delete();
+            }
+            System.out.println("数据新建");
+        }
+    }
+
     private void updateProgress(int threadId, int position) {
-        dbManager.updateDProgress(threadId, position);
+        dbManager.updateDProgress(threadId, signId, position);
         if (onDpoolListener != null) {
             onDpoolListener.onDpoolProgress((int) ((new File(fileSaveUrl).length() * 100) / contentLength));
         }
-        System.out.println("线程：下载中" + threadId + "  " + position + "  " + ((position * 100) / entityList.get(threadId).getPerSize()) + "%");
     }
 
     private void downloadComplete(int threadId, int status) {
-        dbManager.updateDStatus(threadId, status);
+        dbManager.updateDStatus(threadId, signId, status);
         threadList.add(threadId);
+        System.out.println("数据：下载完毕" + "  " + threadList.size() + "  " + threadCount);
         if (threadList.size() == threadCount) {
             complete = System.currentTimeMillis();
             if (onDpoolListener != null) {
                 onDpoolListener.onComplete(complete);
+                dbManager.deleteDEntity(signId);
+                System.out.println("数据：下载完毕");
             }
         }
     }
 
     private void pause() {
-        System.out.println("线程执行：暂停中");
+
     }
 
     private void stop(int threadId, String message) {
-        System.out.println("线程执行：下载异常" + threadId + "  " + message);
+        System.out.println("线程：" + threadId + "  " + message);
     }
 
     private void showToast(String text) {
@@ -199,7 +230,7 @@ public class DPoolImpl implements DPoolDao {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        System.out.println("停止下载");
+        dbManager.deleteDEntity(signId);
     }
 
     @Override
@@ -208,15 +239,16 @@ public class DPoolImpl implements DPoolDao {
     }
 
     @Override
+    public void reDpool() {
+
+    }
+
+    @Override
     public void excutePool() {
         dbManager = new DBManager(context);
         list = new ArrayList<>();
         entityList = new ArrayList<>();
         threadList = new ArrayList<>();
-        File file = new File(fileSaveUrl);
-        if (file.exists()) {
-            file.delete();
-        }
         getHttpFileLength();
     }
 
